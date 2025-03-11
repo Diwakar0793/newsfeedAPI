@@ -1,10 +1,22 @@
 const express = require('express');
 const natural = require('natural');
 const Parser = require('rss-parser');
+const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// CORS configuration
+const corsOptions = {
+  origin: ['http://localhost:4200', 'http://127.0.0.1:4200'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 
 // Initialize NLP tools
 const analyzer = new natural.SentimentAnalyzer('English', natural.PorterStemmer, 'afinn');
@@ -134,6 +146,133 @@ app.get('/analyze-news', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in analyze-news endpoint:', error.message);
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get news by source
+app.get('/news/source/:sourceName', async (req, res) => {
+  try {
+    const { sourceName } = req.params;
+    const source = newsSources.find(s => s.name.toLowerCase() === sourceName.toLowerCase());
+    
+    if (!source) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Source '${sourceName}' not found`,
+        availableSources: newsSources.map(s => s.name)
+      });
+    }
+
+    const articles = await fetchNews(source);
+    res.json({
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      source: source.name,
+      articleCount: articles.length,
+      articles
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get news by topic
+app.get('/news/topic/:topic', async (req, res) => {
+  try {
+    const { topic } = req.params;
+    const allArticles = [];
+    
+    for (const source of newsSources) {
+      const articles = await fetchNews(source);
+      allArticles.push(...articles);
+    }
+
+    const filteredArticles = allArticles.filter(article => 
+      article.topic.toLowerCase() === topic.toLowerCase()
+    );
+
+    res.json({
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      topic,
+      articleCount: filteredArticles.length,
+      articles: filteredArticles
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Get available topics
+app.get('/topics', (req, res) => {
+  const topics = Object.keys(determineTopic('').topics);
+  res.json({
+    status: 'success',
+    timestamp: new Date().toISOString(),
+    topics
+  });
+});
+
+// Get available sources
+app.get('/sources', (req, res) => {
+  const sources = newsSources.map(source => ({
+    name: source.name,
+    feedCount: source.feeds.length,
+    categories: source.feeds.map(feed => {
+      const category = feed.match(/\/([^\/]+)\/(?:rssfeed\.xml|default\.rss|[\d]+\.cms)$/i)?.[1] || 'general';
+      return category.replace(/-/g, ' ');
+    })
+  }));
+
+  res.json({
+    status: 'success',
+    timestamp: new Date().toISOString(),
+    sourceCount: sources.length,
+    sources
+  });
+});
+
+// Get news by source and topic
+app.get('/news/source/:sourceName/topic/:topic', async (req, res) => {
+  try {
+    const { sourceName, topic } = req.params;
+    const source = newsSources.find(s => s.name.toLowerCase() === sourceName.toLowerCase());
+    
+    if (!source) {
+      return res.status(404).json({
+        status: 'error',
+        message: `Source '${sourceName}' not found`,
+        availableSources: newsSources.map(s => s.name)
+      });
+    }
+
+    const articles = await fetchNews(source);
+    const filteredArticles = articles.filter(article => 
+      article.topic.toLowerCase() === topic.toLowerCase()
+    );
+
+    res.json({
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      source: source.name,
+      topic,
+      articleCount: filteredArticles.length,
+      articles: filteredArticles
+    });
+  } catch (error) {
     res.status(500).json({
       status: 'error',
       message: error.message,
