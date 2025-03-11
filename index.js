@@ -7,31 +7,16 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// CORS configuration
-const corsOptions = {
-  origin: '*',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  credentials: true,
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-app.use(cors(corsOptions));
+// Enable CORS for all routes
+app.use(cors({
+  origin: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: '*',
+  credentials: true
+}));
 
 // Handle preflight requests
-app.options('*', cors(corsOptions));
-
-// Add security headers
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept');
-  if (req.method === 'OPTIONS') {
-    return res.status(204).send();
-  }
-  next();
-});
+app.options('*', cors());
 
 // Initialize NLP tools
 const analyzer = new natural.SentimentAnalyzer('English', natural.PorterStemmer, 'afinn');
@@ -402,6 +387,24 @@ function extractEntities(text) {
 
   return entities;
 }
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    status: 'error',
+    message: 'Something went wrong!',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    status: 'error',
+    message: 'Route not found'
+  });
+});
 
 app.listen(port, () => {
   console.log(`News analyzer app listening at http://localhost:${port}`);
