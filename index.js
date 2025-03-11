@@ -8,15 +8,16 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // CORS configuration
-const corsOptions = {
-  origin: ['http://localhost:4200', 'http://127.0.0.1:4200'],
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-  credentials: true,
-  optionsSuccessStatus: 200
-};
-
-app.use(cors(corsOptions));
+app.use(cors());
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
 
 // Initialize NLP tools
 const analyzer = new natural.SentimentAnalyzer('English', natural.PorterStemmer, 'afinn');
