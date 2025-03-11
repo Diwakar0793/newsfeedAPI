@@ -8,12 +8,7 @@ const app = express();
 const port = process.env.PORT || 3000;
 
 // Enable CORS for all routes
-app.use(cors({
-  origin: 'https://newfeed-ui.vercel.app',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['X-CSRF-Token', 'X-Requested-With', 'Accept', 'Accept-Version', 'Content-Length', 'Content-MD5', 'Content-Type', 'Date', 'X-Api-Version'],
-  credentials: true
-}));
+app.use(cors());
 
 // Handle preflight requests
 app.options('*', cors());
